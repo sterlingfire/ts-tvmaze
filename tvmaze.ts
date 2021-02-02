@@ -3,15 +3,24 @@ import * as $ from 'jquery';
 
 const $showsList = $("#showsList");
 const $episodesArea = $("#episodesArea");
+const $episodesList = $("#episodesList");
 const $searchForm = $("#searchForm");
-const BASE_URL = `https://www.tvmaze.com/api`;
-const search_endpoint = `search/shows`;
+const BASE_URL = "http://api.tvmaze.com/";
+const DEFAULT_IMAGE_URL = "https://tinyurl.com/tv-missing";
+const search_endpoint = "search/shows";
 type Show = {
   id: number,
   name: string,
   summary: string,
   image: {medium:string}
 }
+type Episode = {
+  id: number,
+  name: string,
+  season: string,
+  number: string
+}
+
 /** Given a search term, search for tv shows that match that query.
  *
  *  Returns (promise) array of show objects: [show, show, ...].
@@ -20,37 +29,21 @@ type Show = {
  */
 
 async function getShowsByTerm(term:string):Promise<Show[]> {
-  // ADD: Remove placeholder & make request to TVMaze search shows API.
-  const result = await axios.get(`${BASE_URL}/${search_endpoint}?q=${term}`);
+  const result = await axios.get(`${BASE_URL}/${search_endpoint}`, 
+    { params: { q: term }});
   return result.data.map(( r : {show : Show }) => {
     let show=r.show;
     return {  'id':show.id,
               'name':show.name,
               'summary':show.summary,
-              'image':show.image?.medium || "https://tinyurl.com/tv-missing"}
+              'image':show.image?.medium || DEFAULT_IMAGE_URL }
             });
 
 }
-/* {
-  id: 1767,
-  name: "The Bletchley Circle",
-  summary:
-    `<p><b>The Bletchley Circle</b> follows the journey of four ordinary
-       women with extraordinary skills that helped to end World War II.</p>
-     <p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their
-       normal lives, modestly setting aside the part they played in
-       producing crucial intelligence, which helped the Allies to victory
-       and shortened the war. When Susan discovers a hidden code behind an
-       unsolved murder she is met by skepticism from the police. She
-       quickly realises she can only begin to crack the murders and bring
-       the culprit to justice with her former friends.</p>`,
-  image:
-      "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
-} */
 
 /** Given list of shows, create markup for each and to DOM */
 
-function populateShows(shows) {
+function populateShows(shows: Show[]) {
   $showsList.empty();
 
   for (let show of shows) {
@@ -58,19 +51,25 @@ function populateShows(shows) {
         `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img
-              src="http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg"
-              alt="Bletchly Circle San Francisco"
+              src=${show.image}
+              alt=${show.name}
               class="w-25 mr-3">
            <div class="media-body">
              <h5 class="text-primary">${show.name}</h5>
              <div><small>${show.summary}</small></div>
-             <button class="btn btn-outline-light btn-sm Show-getEpisodes">
+             <button id=${show.name}-btn type=click class="btn btn-outline-light btn-sm Show-getEpisodes">
                Episodes
              </button>
            </div>
          </div>
        </div>
       `);
+    
+    const buttonName = $(`${show.id}-btn`);
+    buttonName.on("click", async function (){
+      console.log("click heard");
+      await searchForEpisodesAndDisplay(show.id);
+    });
 
     $showsList.append($show);  }
 }
@@ -81,7 +80,7 @@ function populateShows(shows) {
  */
 
 async function searchForShowAndDisplay() {
-  const term = $("#searchForm-term").val();
+  const term: string = <string>$("#searchForm-term").val();
   const shows = await getShowsByTerm(term);
 
   $episodesArea.hide();
@@ -94,12 +93,43 @@ $searchForm.on("submit", async function (evt) {
 });
 
 
-/** Given a show ID, get from API and return (promise) array of episodes:
+/** Given a showId, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(showId: number) {
+  const episodes_url: string = `${BASE_URL}/shows/${showId}/episodes`;
+  const result = await axios.get(episodes_url);
+  return result.data.map(( r : {episode : Episode }) => {
+    let episode=r.episode;
+    return {  'id':episode.id,
+              'name':episode.name,
+              'season':episode.season,
+              'number':episode.number }
+            });
+ }
+ 
+/** Given list of episodes, create episode list item for each and add to DOM. */
 
-/** Write a clear docstring for this function... */
+function populateEpisodes(episodes: Episode[]) { 
 
-// function populateEpisodes(episodes) { }
+  $episodesArea.show;
+
+  const $episodes = episodes.map((e: Episode) => {
+    return $(
+      `<li>${e.name} (season ${e.season}, number ${e.number})</li>`
+      );
+  });
+
+  $episodesList.append($episodes);
+}
+
+/** Handle episodes button submit: get episodes from API and display. */
+
+async function searchForEpisodesAndDisplay(showId: number){
+  console.log("click heard, made it to search");
+  const episodes = await getEpisodesOfShow(showId);
+
+  populateEpisodes(episodes);
+}
+

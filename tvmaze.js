@@ -12765,8 +12765,10 @@ var axios_1 = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
 var $ = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
 var $showsList = $("#showsList");
 var $episodesArea = $("#episodesArea");
+var $episodesList = $("#episodesList");
 var $searchForm = $("#searchForm");
-var BASE_URL = "https://www.tvmaze.com/api";
+var BASE_URL = "http://api.tvmaze.com/";
+var DEFAULT_IMAGE_URL = "https://tinyurl.com/tv-missing";
 var search_endpoint = "search/shows";
 /** Given a search term, search for tv shows that match that query.
  *
@@ -12779,7 +12781,7 @@ function getShowsByTerm(term) {
         var result;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, axios_1.default.get(BASE_URL + "/" + search_endpoint + "?q=" + term)];
+                case 0: return [4 /*yield*/, axios_1.default.get(BASE_URL + "/" + search_endpoint, { params: { q: term } })];
                 case 1:
                     result = _a.sent();
                     return [2 /*return*/, result.data.map(function (r) {
@@ -12787,35 +12789,37 @@ function getShowsByTerm(term) {
                             var show = r.show;
                             return { 'id': show.id,
                                 'name': show.name,
-                                'summary': show.summary, 'image': ((_a = show.image) === null || _a === void 0 ? void 0 : _a.medium) || "https://tinyurl.com/tv-missing" };
+                                'summary': show.summary, 'image': ((_a = show.image) === null || _a === void 0 ? void 0 : _a.medium) || DEFAULT_IMAGE_URL };
                         })];
             }
         });
     });
 }
-/* {
-  id: 1767,
-  name: "The Bletchley Circle",
-  summary:
-    `<p><b>The Bletchley Circle</b> follows the journey of four ordinary
-       women with extraordinary skills that helped to end World War II.</p>
-     <p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their
-       normal lives, modestly setting aside the part they played in
-       producing crucial intelligence, which helped the Allies to victory
-       and shortened the war. When Susan discovers a hidden code behind an
-       unsolved murder she is met by skepticism from the police. She
-       quickly realises she can only begin to crack the murders and bring
-       the culprit to justice with her former friends.</p>`,
-  image:
-      "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
-} */
 /** Given list of shows, create markup for each and to DOM */
 function populateShows(shows) {
     $showsList.empty();
+    var _loop_1 = function (show) {
+        var $show = $("<div data-show-id=\"" + show.id + "\" class=\"Show col-md-12 col-lg-6 mb-4\">\n         <div class=\"media\">\n           <img\n              src=" + show.image + "\n              alt=" + show.name + "\n              class=\"w-25 mr-3\">\n           <div class=\"media-body\">\n             <h5 class=\"text-primary\">" + show.name + "</h5>\n             <div><small>" + show.summary + "</small></div>\n             <button id=" + show.name + "-btn type=click class=\"btn btn-outline-light btn-sm Show-getEpisodes\">\n               Episodes\n             </button>\n           </div>\n         </div>\n       </div>\n      ");
+        var buttonName = $(show.id + "-btn");
+        buttonName.on("click", function () {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            console.log("click heard");
+                            return [4 /*yield*/, searchForEpisodesAndDisplay(show.id)];
+                        case 1:
+                            _a.sent();
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        });
+        $showsList.append($show);
+    };
     for (var _i = 0, shows_1 = shows; _i < shows_1.length; _i++) {
         var show = shows_1[_i];
-        var $show = $("<div data-show-id=\"" + show.id + "\" class=\"Show col-md-12 col-lg-6 mb-4\">\n         <div class=\"media\">\n           <img\n              src=\"http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg\"\n              alt=\"Bletchly Circle San Francisco\"\n              class=\"w-25 mr-3\">\n           <div class=\"media-body\">\n             <h5 class=\"text-primary\">" + show.name + "</h5>\n             <div><small>" + show.summary + "</small></div>\n             <button class=\"btn btn-outline-light btn-sm Show-getEpisodes\">\n               Episodes\n             </button>\n           </div>\n         </div>\n       </div>\n      ");
-        $showsList.append($show);
+        _loop_1(show);
     }
 }
 /** Handle search form submission: get shows from API and display.
@@ -12852,12 +12856,55 @@ $searchForm.on("submit", function (evt) {
         });
     });
 });
-/** Given a show ID, get from API and return (promise) array of episodes:
+/** Given a showId, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
  */
-// async function getEpisodesOfShow(id) { }
-/** Write a clear docstring for this function... */
-// function populateEpisodes(episodes) { }
+function getEpisodesOfShow(showId) {
+    return __awaiter(this, void 0, void 0, function () {
+        var episodes_url, result;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    episodes_url = BASE_URL + "/shows/" + showId + "/episodes";
+                    return [4 /*yield*/, axios_1.default.get(episodes_url)];
+                case 1:
+                    result = _a.sent();
+                    return [2 /*return*/, result.data.map(function (r) {
+                            var episode = r.episode;
+                            return { 'id': episode.id,
+                                'name': episode.name,
+                                'season': episode.season,
+                                'number': episode.number };
+                        })];
+            }
+        });
+    });
+}
+/** Given list of episodes, create episode list item for each and add to DOM. */
+function populateEpisodes(episodes) {
+    $episodesArea.show;
+    var $episodes = episodes.map(function (e) {
+        return $("<li>" + e.name + " (season " + e.season + ", number " + e.number + ")</li>");
+    });
+    $episodesList.append($episodes);
+}
+/** Handle episodes button submit: get episodes from API and display. */
+function searchForEpisodesAndDisplay(showId) {
+    return __awaiter(this, void 0, void 0, function () {
+        var episodes;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    console.log("click heard, made it to search");
+                    return [4 /*yield*/, getEpisodesOfShow(showId)];
+                case 1:
+                    episodes = _a.sent();
+                    populateEpisodes(episodes);
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
 
 
 /***/ })
